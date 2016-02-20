@@ -7,7 +7,7 @@ IntelliJ IDEA Community Edition.
 
 To compile run `make`. Copy `fsnotifier` somewhere.
 
-Edit `bin/idea.properties` and add:
+Edit `bin/idea.properties` in your IntelliJ distribution and add:
 ```
 idea.filewatcher.executable.path=/path/to/your/fsnotifier
 ```
