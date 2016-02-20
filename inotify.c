@@ -27,14 +27,18 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#if defined(__BSD__)
+#include <sys/resource.h>
+#endif
+
+#if defined(__linux__)
 #if defined(__i386__)
 __asm__(".symver memcpy,memcpy@GLIBC_2.0");
 #elif defined(__amd64__)
 __asm__(".symver memcpy,memcpy@GLIBC_2.2.5");
 #endif
+#endif
 
-
-#define WATCH_COUNT_NAME "/proc/sys/fs/inotify/max_user_watches"
 
 #define DEFAULT_SUBDIR_COUNT 5
 
@@ -93,6 +97,19 @@ bool init_inotify() {
   return true;
 }
 
+#if defined(__BSD__)
+
+#define WATCH_LIMIT 10485760
+
+static void read_watch_descriptors_count() {
+  int limit = getdtablesize();
+  watch_count = limit < WATCH_LIMIT ? limit : WATCH_LIMIT;
+}
+
+#else
+
+#define WATCH_COUNT_NAME "/proc/sys/fs/inotify/max_user_watches"
+
 static void read_watch_descriptors_count() {
   FILE* f = fopen(WATCH_COUNT_NAME, "r");
   if (f == NULL) {
@@ -110,6 +127,7 @@ static void read_watch_descriptors_count() {
 
   fclose(f);
 }
+#endif
 
 
 void set_inotify_callback(void (* _callback)(const char*, int)) {
@@ -136,6 +154,13 @@ static int add_watch(int path_len, watch_node* parent) {
       watch_limit_reached();
       return ERR_CONTINUE;
     }
+#if defined(__BSD__)
+    else if (errno == ENFILE || errno == EMFILE) {
+      userlog(LOG_WARNING, "inotify_add_watch(%s): %s", path_buf, strerror(errno));
+      watch_limit_reached();
+      return ERR_CONTINUE;
+    }
+#endif
     else {
       userlog(LOG_ERR, "inotify_add_watch(%s): %s", path_buf, strerror(errno));
       return ERR_ABORT;

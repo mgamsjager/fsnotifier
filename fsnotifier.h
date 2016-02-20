@@ -16,7 +16,11 @@
 
 #pragma once
 
-#define VERSION "20160218.1348"
+#define VERSION "20160218.1844"
+
+#if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#define __BSD__
+#endif
 
 #include <stdbool.h>
 #include <stdio.h>

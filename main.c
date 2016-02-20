@@ -18,7 +18,6 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <mntent.h>
 #include <paths.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -28,6 +27,12 @@
 #include <sys/stat.h>
 #include <syslog.h>
 #include <unistd.h>
+
+#if defined(__BSD__)
+#include <sys/mount.h>
+#else
+#include <mntent.h>
+#endif
 
 #define LOG_ENV "FSNOTIFIER_LOG_LEVEL"
 #define LOG_ENV_DEBUG "debug"
@@ -402,6 +407,34 @@ static bool register_roots(array* new_roots, array* unwatchable, array* mounts) 
 }
 
 
+#if defined(__BSD__)
+
+static array* unwatchable_mounts() {
+  int fsCount = getfsstat(NULL, 0, MNT_WAIT);
+  if (fsCount > 0) {
+    struct statfs fs[fsCount];
+    fsCount = getfsstat(fs, (int)(sizeof(struct statfs) * fsCount), MNT_NOWAIT);
+    if (fsCount > 0) {
+      array* mounts = array_create(fsCount);
+      CHECK_NULL(mounts, NULL);
+
+      for (int i=0; i<fsCount; i++) {
+        userlog(LOG_DEBUG, "mtab: %s : %s (%d)", fs[i].f_mntonname, fs[i].f_fstypename, fs[i].f_flags);
+        if ((fs[i].f_flags & MNT_LOCAL) != MNT_LOCAL) {
+          CHECK_NULL(array_push(mounts, strdup(fs[i].f_mntonname)), NULL);
+        }
+      }
+
+      return mounts;
+    }
+  }
+
+  userlog(LOG_ERR, "getfsstat() failed");
+  return NULL;
+}
+
+#else
+
 static bool is_watchable(const char* fs) {
   // don't watch special and network filesystems
   return !(strncmp(fs, "dev", 3) == 0 || strcmp(fs, "proc") == 0 || strcmp(fs, "sysfs") == 0 || strcmp(fs, MNTTYPE_SWAP) == 0 ||
@@ -430,6 +463,8 @@ static array* unwatchable_mounts() {
   endmntent(mtab);
   return mounts;
 }
+
+#endif
 
 
 static void inotify_callback(const char* path, int event) {
