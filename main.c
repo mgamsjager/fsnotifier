@@ -90,6 +90,12 @@ static void check_root_removal(const char*);
 
 
 int main(int argc, char** argv) {
+#if defined(__OpenBSD__)
+  if (pledge("stdio rpath", NULL) == -1) {
+    err(1, "pledge");
+  }
+#endif
+
   if (argc > 1) {
     if (strcmp(argv[1], "--help") == 0) {
       printf(USAGE_MSG);

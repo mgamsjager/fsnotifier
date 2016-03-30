@@ -11,7 +11,7 @@ LDFLAGS+=	-pthread
 
 OS!=	uname -s
 .if ${OS} == "OpenBSD"
-INOTIFY=	/inotify
+INOTIFY?=	/inotify
 .endif
 
 .if defined(STATIC_INOTIFY)
