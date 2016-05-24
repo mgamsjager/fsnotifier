@@ -29,6 +29,7 @@
 
 #if defined(__BSD__)
 #include <sys/resource.h>
+#include <sys/sysctl.h>
 #endif
 
 #if defined(__linux__)
@@ -57,8 +58,8 @@ static bool limit_reached = false;
 static void (* callback)(const char*, int) = NULL;
 
 #define EVENT_SIZE (sizeof(struct inotify_event))
-#define EVENT_BUF_LEN (2048 * (EVENT_SIZE + 16))
-static char event_buf[EVENT_BUF_LEN];
+static size_t event_buf_len = 2048 * (EVENT_SIZE + 16);
+static char *event_buf;
 
 static char path_buf[2 * PATH_MAX];
 
@@ -85,6 +86,28 @@ bool init_inotify() {
     return false;
   }
   userlog(LOG_INFO, "inotify watch descriptors: %d", watch_count);
+
+#if defined(__FreeBSD__)
+  size_t sendspace_size = sizeof(size_t);
+  size_t sendspace;
+  if (sysctlbyname("net.local.stream.sendspace",
+		   &sendspace, &sendspace_size, NULL, 0) == -1) {
+    userlog(LOG_WARNING,
+	    "net.local.stream.sendspace could not be read: %s",
+	    strerror(errno));
+  } else {
+    event_buf_len = sendspace * (EVENT_SIZE + 16);
+  }
+#endif
+  userlog(LOG_DEBUG, "event_buf_len: %d\n", event_buf_len);
+
+  event_buf = malloc(event_buf_len);
+  if (event_buf == NULL) {
+    userlog(LOG_ERR, "out of memory");
+    close(inotify_fd);
+    inotify_fd = -1;
+    return false;
+  }
 
   watches = table_create(watch_count);
   if (watches == NULL) {
@@ -420,13 +443,13 @@ static bool process_inotify_event(struct inotify_event* event) {
 
 
 bool process_inotify_input() {
-  ssize_t len = read(inotify_fd, event_buf, EVENT_BUF_LEN);
+  ssize_t len = read(inotify_fd, event_buf, event_buf_len);
   if (len < 0) {
     userlog(LOG_ERR, "read: %s", strerror(errno));
     return false;
   }
 
-  int i = 0;
+  ssize_t i = 0;
   while (i < len) {
     struct inotify_event* event = (struct inotify_event*) &event_buf[i];
     i += EVENT_SIZE + event->len;
@@ -452,6 +475,8 @@ void close_inotify() {
   if (watches != NULL) {
     table_delete(watches);
   }
+
+  free(event_buf);
 
   if (inotify_fd >= 0) {
     close(inotify_fd);
