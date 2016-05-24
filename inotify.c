@@ -28,6 +28,7 @@
 #include <unistd.h>
 
 #if defined(__BSD__)
+#include <sys/param.h>
 #include <sys/resource.h>
 #include <sys/sysctl.h>
 #endif
@@ -122,11 +123,11 @@ bool init_inotify() {
 
 #if defined(__BSD__)
 
-#define WATCH_LIMIT 10485760
+#define WATCH_LIMIT 131072
 
 static void read_watch_descriptors_count() {
   int limit = getdtablesize();
-  watch_count = limit < WATCH_LIMIT ? limit : WATCH_LIMIT;
+  watch_count = MIN(limit, WATCH_LIMIT);
 }
 
 #else
