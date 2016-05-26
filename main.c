@@ -52,6 +52,17 @@
 #define HELP_MSG \
     "Try 'fsnotifier --help' for more information.\n"
 
+#if defined(__BSD__)
+
+#define WATCH_LIMIT_TEXT \
+  "The maximum number of watchable files has been exceeded. " \
+  "<a href=\"https://github.com/idea4bsd/fsnotifier/wiki/Watch-limit\">More details.</a>\n"
+
+#define INSTANCE_LIMIT_TEXT \
+  WATCH_LIMIT_TEXT
+
+#else
+
 #define INSTANCE_LIMIT_TEXT \
     "The <b>inotify</b>(7) instances limit reached. " \
     "<a href=\"https://confluence.jetbrains.com/display/IDEADEV/Inotify+Instances+Limit\">More details.</a>\n"
@@ -59,6 +70,8 @@
 #define WATCH_LIMIT_TEXT \
     "The current <b>inotify</b>(7) watch limit is too low. " \
     "<a href=\"https://confluence.jetbrains.com/display/IDEADEV/Inotify+Watches+Limit\">More details.</a>\n"
+
+#endif
 
 #define MISSING_ROOT_TIMEOUT 1
 
