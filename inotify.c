@@ -164,7 +164,7 @@ int get_inotify_fd() {
 }
 
 
-#define EVENT_MASK IN_MODIFY | IN_ATTRIB | IN_CREATE | IN_DELETE | IN_MOVE | IN_DELETE_SELF | IN_MOVE_SELF
+#define EVENT_MASK IN_CREATE | IN_DELETE | IN_MOVED_FROM | IN_MOVED_TO | IN_DELETE_SELF | IN_MOVE_SELF
 
 static int add_watch(int path_len, watch_node* parent) {
   int wd = inotify_add_watch(inotify_fd, path_buf, EVENT_MASK);
